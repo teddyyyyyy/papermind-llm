@@ -1,4 +1,5 @@
-from sqlalchemy import Column, Integer, Text
+from sqlalchemy import Column, Integer, Text, DateTime
+from datetime import datetime, timezone
 from app.config.database import Base
 
 
@@ -10,3 +11,5 @@ class InferenceJob(Base):
     filename = Column(Text, nullable=False)
 
     status = Column(Text, default="pending")
+
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
