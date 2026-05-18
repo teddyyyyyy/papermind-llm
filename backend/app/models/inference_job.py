@@ -12,4 +12,6 @@ class InferenceJob(Base):
 
     status = Column(Text, default="pending")
 
+    summary = Column(Text, nullable=True)
+
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))

@@ -10,6 +10,8 @@ class JobResponse(BaseModel):
 
     status: str
 
+    summary: str | None
+
     created_at: datetime
 
     model_config = {
