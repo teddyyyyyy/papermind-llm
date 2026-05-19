@@ -6,6 +6,7 @@ from app.config.database import SessionLocal
 
 from app.models.inference_job import InferenceJob
 
+import ollama
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -38,9 +39,24 @@ def process_jobs():
 
                 text = f.read()
 
-            fake_summary = text[:100]
+            response = ollama.chat(
+                model="qwen2.5:3b",
+                messages=[
+                    {
+                        "role": "user",
+                        "content": f"""
+                        Summarize the following document clearly and concisely.
 
-            job.summary = fake_summary
+                        Document:
+                        {text}
+                        """
+                    }
+                ]
+            )
+
+            summary = response["message"]["content"]
+
+            job.summary = summary
 
             job.status = "finished"
 

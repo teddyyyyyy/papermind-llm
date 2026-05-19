@@ -16,6 +16,8 @@ from app.schemas.inference_job import JobResponse
 
 from app.services.job_service import create_job
 
+from app.models.inference_job import InferenceJob
+
 router = APIRouter()
 
 UPLOAD_DIR = Path("app/uploads")
@@ -31,29 +33,27 @@ def create_new_job(
     file: UploadFile = File(...)
 ):
 
-    print("STEP 1")
-
     upload_path = UPLOAD_DIR / file.filename
-
-    print("STEP 2", upload_path)
 
     with open(upload_path, "wb") as buffer:
 
-        print("STEP 3")
-
         shutil.copyfileobj(file.file, buffer)
 
-    print("STEP 4")
-
     db: Session = SessionLocal()
-
-    print("STEP 5")
 
     job = create_job(
         db,
         file.filename
     )
 
-    print("STEP 6")
-
     return job
+
+
+@router.get("/jobs")
+def get_jobs():
+
+    db: Session = SessionLocal()
+
+    jobs = db.query(InferenceJob).all()
+
+    return jobs
