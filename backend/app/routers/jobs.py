@@ -14,7 +14,7 @@ from app.config.database import SessionLocal
 
 from app.schemas.inference_job import JobResponse
 
-from app.services.job_service import create_job
+from app.services.job_service import create_job, get_job_by_filename
 
 from app.models.inference_job import InferenceJob
 
@@ -33,13 +33,18 @@ def create_new_job(
     file: UploadFile = File(...)
 ):
 
+    db: Session = SessionLocal()
+
+    existing_job = get_job_by_filename(db, file.filename)
+
+    if existing_job:
+        return existing_job
+
     upload_path = UPLOAD_DIR / file.filename
 
     with open(upload_path, "wb") as buffer:
 
         shutil.copyfileobj(file.file, buffer)
-
-    db: Session = SessionLocal()
 
     job = create_job(
         db,

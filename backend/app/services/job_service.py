@@ -3,6 +3,13 @@ from sqlalchemy.orm import Session
 from app.models.inference_job import InferenceJob
 
 
+def get_job_by_filename(db: Session, filename: str):
+
+    return db.query(InferenceJob).filter(
+        InferenceJob.filename == filename
+    ).first()
+
+
 def create_job(db: Session, filename: str):
 
     job = InferenceJob(

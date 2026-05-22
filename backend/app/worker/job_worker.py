@@ -8,6 +8,8 @@ from app.models.inference_job import InferenceJob
 
 import ollama
 
+from pypdf import PdfReader
+
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 UPLOAD_DIR = BASE_DIR / "uploads"
@@ -35,9 +37,14 @@ def process_jobs():
 
             print(file_path)
 
-            with open(file_path, "r") as f:
-
-                text = f.read()
+            if file_path.suffix.lower() == ".pdf":
+                reader = PdfReader(file_path)
+                text = "\n".join(
+                    page.extract_text() or "" for page in reader.pages
+                )
+            else:
+                with open(file_path, "r") as f:
+                    text = f.read()
 
             response = ollama.chat(
                 model="qwen2.5:3b",
