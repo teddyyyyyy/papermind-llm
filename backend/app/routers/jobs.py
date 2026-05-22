@@ -1,7 +1,8 @@
 from fastapi import (
     APIRouter,
     UploadFile,
-    File
+    File,
+    HTTPException
 )
 
 from pathlib import Path
@@ -14,7 +15,7 @@ from app.config.database import SessionLocal
 
 from app.schemas.inference_job import JobResponse
 
-from app.services.job_service import create_job, get_job_by_filename
+from app.services.job_service import create_job, get_job_by_filename, get_job_by_id
 
 from app.models.inference_job import InferenceJob
 
@@ -50,6 +51,19 @@ def create_new_job(
         db,
         file.filename
     )
+
+    return job
+
+
+@router.get("/jobs/{job_id}", response_model=JobResponse)
+def get_job(job_id: int):
+
+    db: Session = SessionLocal()
+
+    job = get_job_by_id(db, job_id)
+
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
 
     return job
 

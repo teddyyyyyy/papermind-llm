@@ -15,7 +15,24 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 UPLOAD_DIR = BASE_DIR / "uploads"
 
 
+def reset_stuck_jobs(db):
+
+    stuck_jobs = db.query(InferenceJob).filter(
+        InferenceJob.status == "running"
+    ).all()
+
+    for job in stuck_jobs:
+        print(f"Resetting stuck job {job.id}")
+        job.status = "pending"
+
+    db.commit()
+
+
 def process_jobs():
+
+    db = SessionLocal()
+    reset_stuck_jobs(db)
+    db.close()
 
     while True:
 
@@ -33,43 +50,56 @@ def process_jobs():
 
             db.commit()
 
-            file_path = UPLOAD_DIR / job.filename
+            try:
 
-            print(file_path)
+                file_path = UPLOAD_DIR / job.filename
 
-            if file_path.suffix.lower() == ".pdf":
-                reader = PdfReader(file_path)
-                text = "\n".join(
-                    page.extract_text() or "" for page in reader.pages
+                print(file_path)
+
+                if not file_path.exists():
+                    raise FileNotFoundError(f"File not found: {file_path}")
+
+                if file_path.suffix.lower() == ".pdf":
+                    reader = PdfReader(file_path)
+                    text = "\n".join(
+                        page.extract_text() or "" for page in reader.pages
+                    )
+                else:
+                    with open(file_path, "r") as f:
+                        text = f.read()
+
+                response = ollama.chat(
+                    model="qwen2.5:3b",
+                    messages=[
+                        {
+                            "role": "user",
+                            "content": f"""
+                            Summarize the following document clearly and concisely.
+
+                            Document:
+                            {text}
+                            """
+                        }
+                    ]
                 )
-            else:
-                with open(file_path, "r") as f:
-                    text = f.read()
 
-            response = ollama.chat(
-                model="qwen2.5:3b",
-                messages=[
-                    {
-                        "role": "user",
-                        "content": f"""
-                        Summarize the following document clearly and concisely.
+                summary = response["message"]["content"]
 
-                        Document:
-                        {text}
-                        """
-                    }
-                ]
-            )
+                job.summary = summary
 
-            summary = response["message"]["content"]
+                job.status = "finished"
 
-            job.summary = summary
+                db.commit()
 
-            job.status = "finished"
+                print(f"Finished job {job.id}")
 
-            db.commit()
+            except Exception as e:
 
-            print(f"Finished job {job.id}")
+                print(f"Failed job {job.id}: {e}")
+
+                job.status = "failed"
+
+                db.commit()
 
         db.close()
 

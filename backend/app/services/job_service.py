@@ -25,6 +25,13 @@ def create_job(db: Session, filename: str):
     return job
 
 
+def get_job_by_id(db: Session, job_id: int):
+
+    return db.query(InferenceJob).filter(
+        InferenceJob.id == job_id
+    ).first()
+
+
 def get_jobs(db: Session):
 
     return db.query(InferenceJob).all()
