@@ -6,33 +6,19 @@ from app.config.database import SessionLocal
 
 from app.models.inference_job import InferenceJob
 
+from app.services.rag_service import store_chunks
+
 import ollama
 
 from pypdf import PdfReader
+
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 UPLOAD_DIR = BASE_DIR / "uploads"
 
 
-def reset_stuck_jobs(db):
-
-    stuck_jobs = db.query(InferenceJob).filter(
-        InferenceJob.status == "running"
-    ).all()
-
-    for job in stuck_jobs:
-        print(f"Resetting stuck job {job.id}")
-        job.status = "pending"
-
-    db.commit()
-
-
 def process_jobs():
-
-    db = SessionLocal()
-    reset_stuck_jobs(db)
-    db.close()
 
     while True:
 
@@ -56,9 +42,7 @@ def process_jobs():
 
                 print(file_path)
 
-                if not file_path.exists():
-                    raise FileNotFoundError(f"File not found: {file_path}")
-
+                # Read the file (PDF or plain text)
                 if file_path.suffix.lower() == ".pdf":
                     reader = PdfReader(file_path)
                     text = "\n".join(
@@ -68,17 +52,17 @@ def process_jobs():
                     with open(file_path, "r") as f:
                         text = f.read()
 
+                # Step 1: Summarize the full document
                 response = ollama.chat(
                     model="qwen2.5:3b",
                     messages=[
                         {
                             "role": "user",
-                            "content": f"""
-                            Summarize the following document clearly and concisely.
+                            "content": f"""Summarize the following document clearly and concisely.
 
-                            Document:
-                            {text}
-                            """
+Document:
+{text}
+"""
                         }
                     ]
                 )
@@ -86,6 +70,11 @@ def process_jobs():
                 summary = response["message"]["content"]
 
                 job.summary = summary
+
+                db.commit()
+
+                # Step 2: Chunk + embed for RAG
+                store_chunks(db, job.id, text)
 
                 job.status = "finished"
 
@@ -95,7 +84,7 @@ def process_jobs():
 
             except Exception as e:
 
-                print(f"Failed job {job.id}: {e}")
+                print(f"Error processing job {job.id}: {e}")
 
                 job.status = "failed"
 

@@ -17,3 +17,17 @@ class JobResponse(BaseModel):
     model_config = {
         "from_attributes": True
     }
+
+
+class AskRequest(BaseModel):
+
+    question: str
+
+
+class AskResponse(BaseModel):
+
+    job_id: int
+
+    question: str
+
+    answer: str
