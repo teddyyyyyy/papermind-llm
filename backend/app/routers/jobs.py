@@ -2,18 +2,17 @@ from fastapi import (
     APIRouter,
     UploadFile,
     File,
-    HTTPException
+    HTTPException,
+    Depends
 )
 
 from pathlib import Path
 
 import shutil
 
-import ollama
-
 from sqlalchemy.orm import Session
 
-from app.config.database import SessionLocal
+from app.config.database import get_db
 
 from app.schemas.inference_job import JobResponse, AskRequest, AskResponse
 
@@ -23,6 +22,12 @@ from app.services.rag_service import search_chunks
 
 from app.models.inference_job import InferenceJob
 
+from openai import OpenAI
+
+client = OpenAI()
+
+LLM_MODEL = "gpt-5.4-mini"
+
 router = APIRouter()
 
 UPLOAD_DIR = Path("app/uploads")
@@ -30,15 +35,11 @@ UPLOAD_DIR = Path("app/uploads")
 UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 
 
-@router.post(
-    "/jobs",
-    response_model=JobResponse
-)
+@router.post("/jobs", response_model=JobResponse)
 def create_new_job(
-    file: UploadFile = File(...)
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db)
 ):
-
-    db: Session = SessionLocal()
 
     existing_job = get_job_by_filename(db, file.filename)
 
@@ -48,21 +49,15 @@ def create_new_job(
     upload_path = UPLOAD_DIR / file.filename
 
     with open(upload_path, "wb") as buffer:
-
         shutil.copyfileobj(file.file, buffer)
 
-    job = create_job(
-        db,
-        file.filename
-    )
+    job = create_job(db, file.filename)
 
     return job
 
 
 @router.get("/jobs/{job_id}", response_model=JobResponse)
-def get_job(job_id: int):
-
-    db: Session = SessionLocal()
+def get_job(job_id: int, db: Session = Depends(get_db)):
 
     job = get_job_by_id(db, job_id)
 
@@ -73,19 +68,13 @@ def get_job(job_id: int):
 
 
 @router.get("/jobs")
-def get_jobs():
+def get_jobs(db: Session = Depends(get_db)):
 
-    db: Session = SessionLocal()
-
-    jobs = db.query(InferenceJob).all()
-
-    return jobs
+    return db.query(InferenceJob).all()
 
 
 @router.post("/jobs/{job_id}/ask", response_model=AskResponse)
-def ask_question(job_id: int, request: AskRequest):
-
-    db: Session = SessionLocal()
+def ask_question(job_id: int, request: AskRequest, db: Session = Depends(get_db)):
 
     job = get_job_by_id(db, job_id)
 
@@ -104,8 +93,8 @@ def ask_question(job_id: int, request: AskRequest):
     context = "\n\n".join(relevant_chunks)
 
     # Ask the LLM with the retrieved context
-    response = ollama.chat(
-        model="qwen2.5:3b",
+    response = client.chat.completions.create(
+        model=LLM_MODEL,
         messages=[
             {
                 "role": "user",
@@ -122,7 +111,7 @@ Answer:"""
         ]
     )
 
-    answer = response["message"]["content"]
+    answer = response.choices[0].message.content
 
     return AskResponse(
         job_id=job_id,

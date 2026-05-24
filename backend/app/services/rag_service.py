@@ -1,11 +1,13 @@
-import ollama
+from openai import OpenAI
 
 from sqlalchemy.orm import Session
 
 from app.models.document_chunk import DocumentChunk
 
 
-EMBED_MODEL = "nomic-embed-text"
+client = OpenAI()  # reads OPENAI_API_KEY from environment
+
+EMBED_MODEL = "text-embedding-3-small"
 
 CHUNK_SIZE = 500
 
@@ -34,11 +36,14 @@ def chunk_text(text: str) -> list[str]:
 
 
 def embed_text(text: str) -> list[float]:
-    """Get embedding vector for a piece of text using Ollama."""
+    """Get embedding vector using OpenAI text-embedding-3-small."""
 
-    response = ollama.embed(model=EMBED_MODEL, input=text)
+    response = client.embeddings.create(
+        model=EMBED_MODEL,
+        input=text
+    )
 
-    return response["embeddings"][0]
+    return response.data[0].embedding
 
 
 def store_chunks(db: Session, job_id: int, text: str):
@@ -52,6 +57,8 @@ def store_chunks(db: Session, job_id: int, text: str):
     print(f"Storing {len(chunks)} chunks for job {job_id}")
 
     for i, chunk in enumerate(chunks):
+
+        print(f"  Embedding chunk {i + 1}/{len(chunks)}...")
 
         embedding = embed_text(chunk)
 

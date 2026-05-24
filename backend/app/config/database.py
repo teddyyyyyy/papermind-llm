@@ -15,3 +15,12 @@ SessionLocal = sessionmaker(
 )
 
 Base = declarative_base()
+
+
+def get_db():
+    """Dependency that provides a DB session and always closes it after use."""
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()

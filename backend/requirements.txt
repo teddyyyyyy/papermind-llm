@@ -4,5 +4,5 @@ uvicorn
 psycopg2-binary
 python-multipart
 pypdf
-ollama
+openai
 pgvector

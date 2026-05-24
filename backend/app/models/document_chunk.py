@@ -14,4 +14,4 @@ class DocumentChunk(Base):
 
     content = Column(Text, nullable=False)
 
-    embedding = Column(Vector(768))
+    embedding = Column(Vector(1536))

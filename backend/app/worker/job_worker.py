@@ -2,16 +2,20 @@ import time
 
 from pathlib import Path
 
+from openai import OpenAI
+
+from pypdf import PdfReader
+
 from app.config.database import SessionLocal
 
 from app.models.inference_job import InferenceJob
 
 from app.services.rag_service import store_chunks
 
-import ollama
 
-from pypdf import PdfReader
+client = OpenAI()  # reads OPENAI_API_KEY from environment
 
+LLM_MODEL = "gpt-5.4-mini"
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -53,8 +57,8 @@ def process_jobs():
                         text = f.read()
 
                 # Step 1: Summarize the full document
-                response = ollama.chat(
-                    model="qwen2.5:3b",
+                response = client.chat.completions.create(
+                    model=LLM_MODEL,
                     messages=[
                         {
                             "role": "user",
@@ -67,7 +71,7 @@ Document:
                     ]
                 )
 
-                summary = response["message"]["content"]
+                summary = response.choices[0].message.content
 
                 job.summary = summary
 
