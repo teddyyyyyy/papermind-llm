@@ -110,8 +110,19 @@ def ask_question(job_id: int, request: AskRequest, db: Session = Depends(get_db)
 
     # Find the most relevant chunks for the question
     relevant_chunks = search_chunks(db, job_id, request.question)
+    print(f"[ask] job={job_id} question='{request.question}' → {len(relevant_chunks)} chunks retrieved")
+    for i, c in enumerate(relevant_chunks):
+        print(f"  chunk[{i}]: {c[:100]!r}")
 
-    context = "\n\n".join(relevant_chunks)
+    # Always prepend title + summary so basic questions always get answered
+    context_parts = []
+    if job.title and job.title != job.filename:
+        context_parts.append(f"Paper Title: {job.title}")
+    if job.summary:
+        context_parts.append(f"Paper Summary: {job.summary}")
+    context_parts.extend(relevant_chunks)
+
+    context = "\n\n".join(context_parts)
 
     # Ask the LLM with the retrieved context
     response = client.chat.completions.create(
@@ -119,7 +130,7 @@ def ask_question(job_id: int, request: AskRequest, db: Session = Depends(get_db)
         messages=[
             {
                 "role": "user",
-                "content": f"""Answer the question based only on the following context from a research paper.
+                "content": f"""Answer the question based on the following context from a research paper.
 If the answer is not in the context, say "I could not find the answer in the document."
 
 Context:

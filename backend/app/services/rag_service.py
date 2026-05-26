@@ -9,9 +9,9 @@ client = OpenAI()  # reads OPENAI_API_KEY from environment
 
 EMBED_MODEL = "text-embedding-3-small"
 
-CHUNK_SIZE = 500
+CHUNK_SIZE = 1500   # ~375 tokens — better context per chunk, fewer total chunks
 
-CHUNK_OVERLAP = 50
+CHUNK_OVERLAP = 150
 
 
 def chunk_text(text: str) -> list[str]:
@@ -36,7 +36,7 @@ def chunk_text(text: str) -> list[str]:
 
 
 def embed_text(text: str) -> list[float]:
-    """Get embedding vector using OpenAI text-embedding-3-small."""
+    """Embed a single string (used for query embedding at search time)."""
 
     response = client.embeddings.create(
         model=EMBED_MODEL,
@@ -46,34 +46,42 @@ def embed_text(text: str) -> list[float]:
     return response.data[0].embedding
 
 
-def store_chunks(db: Session, job_id: int, text: str):
-    """Chunk the document, embed each chunk, and store in DB."""
+def embed_batch(texts: list[str]) -> list[list[float]]:
+    """Embed all chunks in ONE API call instead of one call per chunk."""
 
-    # Remove existing chunks for this job (in case of re-processing)
+    response = client.embeddings.create(
+        model=EMBED_MODEL,
+        input=texts
+    )
+
+    # response.data is ordered to match input order
+    return [item.embedding for item in response.data]
+
+
+def store_chunks(db: Session, job_id: int, text: str):
+    """Chunk the document, batch-embed all chunks, and store in DB."""
+
     db.query(DocumentChunk).filter(DocumentChunk.job_id == job_id).delete()
 
     chunks = chunk_text(text)
 
-    print(f"Storing {len(chunks)} chunks for job {job_id}")
+    print(f"Embedding {len(chunks)} chunks in one batch call...")
 
-    for i, chunk in enumerate(chunks):
+    embeddings = embed_batch(chunks)   # 1 API call instead of N
 
-        print(f"  Embedding chunk {i + 1}/{len(chunks)}...")
-
-        embedding = embed_text(chunk)
-
-        doc_chunk = DocumentChunk(
+    db.add_all([
+        DocumentChunk(
             job_id=job_id,
             chunk_index=i,
             content=chunk,
-            embedding=embedding
+            embedding=embedding,
         )
-
-        db.add(doc_chunk)
+        for i, (chunk, embedding) in enumerate(zip(chunks, embeddings))
+    ])
 
     db.commit()
 
-    print(f"Finished storing chunks for job {job_id}")
+    print(f"Finished storing {len(chunks)} chunks for job {job_id}")
 
 
 def search_chunks(db: Session, job_id: int, question: str, top_k: int = 5) -> list[str]:
