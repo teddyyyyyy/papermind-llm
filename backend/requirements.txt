@@ -6,3 +6,8 @@ python-multipart
 pypdf
 openai
 pgvector
+
+# testing
+pytest
+pytest-mock
+httpx

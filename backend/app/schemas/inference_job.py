@@ -1,5 +1,6 @@
 from pydantic import BaseModel
 from datetime import datetime
+from typing import Optional
 
 
 class JobResponse(BaseModel):
@@ -8,9 +9,13 @@ class JobResponse(BaseModel):
 
     filename: str
 
+    title: Optional[str] = None
+
     status: str
 
-    summary: str | None
+    summary: Optional[str] = None
+
+    category_id: Optional[int] = None
 
     created_at: datetime
 
@@ -31,3 +36,8 @@ class AskResponse(BaseModel):
     question: str
 
     answer: str
+
+
+class JobUpdate(BaseModel):
+
+    category_id: Optional[int] = None

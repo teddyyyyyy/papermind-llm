@@ -56,13 +56,20 @@ def process_jobs():
                     with open(file_path, "r") as f:
                         text = f.read()
 
-                # Step 1: Summarize the full document
+                # Extract title + summarize in one LLM call
                 response = client.chat.completions.create(
                     model=LLM_MODEL,
                     messages=[
                         {
                             "role": "user",
-                            "content": f"""Summarize the following document clearly and concisely.
+                            "content": f"""You are analyzing a research paper or document.
+
+1. Extract or infer the title of this document. If it's a research paper, use the actual paper title. If no clear title exists, create a short descriptive title (max 10 words).
+2. Write a clear, concise summary.
+
+Respond in exactly this format (no extra text before or after):
+TITLE: <title here>
+SUMMARY: <summary here>
 
 Document:
 {text}
@@ -71,20 +78,33 @@ Document:
                     ]
                 )
 
-                summary = response.choices[0].message.content
+                content = response.choices[0].message.content or ""
 
+                # Parse TITLE / SUMMARY from response
+                title = job.filename  # fallback to filename
+                summary = content     # fallback to full content
+
+                if "TITLE:" in content and "SUMMARY:" in content:
+                    parts = content.split("SUMMARY:", 1)
+                    title_part = parts[0].replace("TITLE:", "").strip()
+                    summary_part = parts[1].strip()
+                    if title_part:
+                        title = title_part
+                    summary = summary_part
+
+                job.title = title
                 job.summary = summary
 
                 db.commit()
 
-                # Step 2: Chunk + embed for RAG
+                # Chunk + embed for RAG
                 store_chunks(db, job.id, text)
 
                 job.status = "finished"
 
                 db.commit()
 
-                print(f"Finished job {job.id}")
+                print(f"Finished job {job.id} — title: {title}")
 
             except Exception as e:
 

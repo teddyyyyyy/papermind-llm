@@ -26,3 +26,8 @@ postgres_data/
 
 # Environment variables
 .env
+
+# Uploaded files
+backend/app/uploads/*
+backend/tests/*.pdf
+backend/tests/*.txt

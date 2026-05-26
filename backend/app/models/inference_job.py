@@ -10,8 +10,12 @@ class InferenceJob(Base):
 
     filename = Column(Text, nullable=False)
 
+    title = Column(Text, nullable=True)
+
     status = Column(Text, default="pending")
 
     summary = Column(Text, nullable=True)
+
+    category_id = Column(Integer, nullable=True)  # FK to categories.id
 
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))

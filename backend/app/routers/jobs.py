@@ -14,9 +14,9 @@ from sqlalchemy.orm import Session
 
 from app.config.database import get_db
 
-from app.schemas.inference_job import JobResponse, AskRequest, AskResponse
+from app.schemas.inference_job import JobResponse, AskRequest, AskResponse, JobUpdate
 
-from app.services.job_service import create_job, get_job_by_filename, get_job_by_id
+from app.services.job_service import create_job, get_job_by_filename, get_job_by_id, delete_job
 
 from app.services.rag_service import search_chunks
 
@@ -71,6 +71,27 @@ def get_job(job_id: int, db: Session = Depends(get_db)):
 def get_jobs(db: Session = Depends(get_db)):
 
     return db.query(InferenceJob).all()
+
+
+@router.patch("/jobs/{job_id}", response_model=JobResponse)
+def update_job(job_id: int, body: JobUpdate, db: Session = Depends(get_db)):
+    job = get_job_by_id(db, job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+    if body.category_id is not None:
+        job.category_id = body.category_id
+    else:
+        job.category_id = None
+    db.commit()
+    db.refresh(job)
+    return job
+
+
+@router.delete("/jobs/{job_id}", status_code=204)
+def remove_job(job_id: int, db: Session = Depends(get_db)):
+    deleted = delete_job(db, job_id)
+    if not deleted:
+        raise HTTPException(status_code=404, detail="Job not found")
 
 
 @router.post("/jobs/{job_id}/ask", response_model=AskResponse)
