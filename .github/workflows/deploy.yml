@@ -12,22 +12,17 @@ jobs:
   deploy-backend:
     name: Deploy backend → Render
     runs-on: ubuntu-latest
-    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    if: ${{ github.event.workflow_run.conclusion == 'success' && secrets.RENDER_DEPLOY_HOOK_URL != '' }}
 
     steps:
       - name: Trigger Render deploy hook
-        # Set RENDER_DEPLOY_HOOK_URL in GitHub → Settings → Secrets → Actions
-        run: |
-          curl -s "${{ secrets.RENDER_DEPLOY_HOOK_URL }}" \
-            -X POST --fail \
-            && echo "Render deploy triggered" \
-            || echo "Render hook not configured yet — skipping"
+        run: curl -s "${{ secrets.RENDER_DEPLOY_HOOK_URL }}" -X POST --fail
 
   # ── Deploy frontend to Vercel ──────────────────────────────────────────────
   deploy-frontend:
     name: Deploy frontend → Vercel
     runs-on: ubuntu-latest
-    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    if: ${{ github.event.workflow_run.conclusion == 'success' && secrets.VERCEL_TOKEN != '' }}
 
     steps:
       - name: Checkout code
@@ -43,10 +38,6 @@ jobs:
 
       - name: Deploy to Vercel (production)
         working-directory: frontend
-        # Set these three secrets in GitHub → Settings → Secrets → Actions:
-        #   VERCEL_TOKEN       — from vercel.com/account/tokens
-        #   VERCEL_ORG_ID      — from .vercel/project.json after first `vercel link`
-        #   VERCEL_PROJECT_ID  — from .vercel/project.json after first `vercel link`
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
