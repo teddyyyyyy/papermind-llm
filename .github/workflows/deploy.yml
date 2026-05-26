@@ -1,6 +1,5 @@
 name: Deploy
 
-# Runs only after CI passes on main
 on:
   workflow_run:
     workflows: ["Backend CI", "Frontend CI"]
@@ -8,22 +7,19 @@ on:
     types: [completed]
 
 jobs:
-  # ── Deploy backend to Render ───────────────────────────────────────────────
   deploy-backend:
     name: Deploy backend → Render
     runs-on: ubuntu-latest
-    if: ${{ github.event.workflow_run.conclusion == 'success' && secrets.RENDER_DEPLOY_HOOK_URL != '' }}
-
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
     steps:
       - name: Trigger Render deploy hook
+        if: ${{ secrets.RENDER_DEPLOY_HOOK_URL != '' }}
         run: curl -s "${{ secrets.RENDER_DEPLOY_HOOK_URL }}" -X POST --fail
 
-  # ── Deploy frontend to Vercel ──────────────────────────────────────────────
   deploy-frontend:
     name: Deploy frontend → Vercel
     runs-on: ubuntu-latest
-    if: ${{ github.event.workflow_run.conclusion == 'success' && secrets.VERCEL_TOKEN != '' }}
-
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -37,6 +33,7 @@ jobs:
         run: npm install -g vercel
 
       - name: Deploy to Vercel (production)
+        if: ${{ secrets.VERCEL_TOKEN != '' }}
         working-directory: frontend
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
