@@ -19,6 +19,7 @@
 - ✏️ **Inline category editing** — rename categories directly in the UI
 - 🗑️ **Delete papers and categories** with one click
 - ⚙️ **Background worker** — processing happens automatically after upload
+- ⚡ **Batch embeddings** — all chunks embedded in one API call for fast processing
 
 ---
 
@@ -245,3 +246,16 @@ papermind-llm/
 | `OPENAI_API_KEY` | ✅ | Your OpenAI API key |
 
 Database connection is hardcoded in `backend/app/config/database.py` for local dev. Update to use `DATABASE_URL` env var before deploying.
+
+---
+
+## 💡 RAG Tips
+
+The Q&A uses **Retrieval-Augmented Generation** — it finds the 5 most relevant chunks and sends them to GPT. This means:
+
+| Works well | Doesn't work well |
+|---|---|
+| "What is the main contribution?" | "How many references?" |
+| "What methodology was used?" | "What is on page 5?" |
+| "What were the key findings?" | "Summarize every section" |
+| "What are the limitations?" | Counting anything |
